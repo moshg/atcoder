@@ -1,4 +1,5 @@
 use std::io;
+use std::collections::HashMap;
 use io_ext::Reader;
 use parse::ParseAll;
 
@@ -9,74 +10,75 @@ fn main() {
     let mut edges: Vec<(usize, usize)> = Vec::with_capacity(n);
     for _ in 0..(n - 1) {
         let (a, b): (usize, usize) = r.read_line().split_whitespace().parse_all();
-        edges.push((a - 1, b - 1))
+        let (a, b) = (a - 1, b - 1);
+        edges.push((a, b));
     }
 
-    let (count, colors) = answer(n, &edges);
+    let (count, colors) = answer(&edges);
     println!("{}", count);
     for c in colors {
         println!("{}", c + 1);
     }
 }
 
-fn find_root(n :usize, edges: &[(usize, usize)]) -> usize {
-    'vertex: for k in 0..n {
-        for &(a, b) in edges {
-            if b == k {
-                continue 'vertex;
+struct Tree {
+    vertex: usize,
+    children: Vec<Tree>,
+}
+
+impl Tree {
+    fn append_undirected(&mut self, parent: usize, edges: &[Vec<usize>]) {
+        for &child in &edges[self.vertex] {
+            if child != parent {
+                self.children.push(Tree { vertex: child, children: Vec::new() });
             }
         }
-        return k;
-    }
-    unreachable!()
-}
 
-struct Vertex {
-    n: usize,
-    children: Vec<(usize, Vertex)>,
-}
-
-fn add_to_tree(root: &mut Vertex, edges: &[(usize, usize)]) {
-    let n = root.n;
-    for (i, &(a, b)) in edges.iter().enumerate() {
-        if a == n {
-            root.children.push((i, Vertex { n: b, children: Vec::new() }));
-        } else if b == n {
-            root.children.push((i, Vertex { n: a, children: Vec::new() }));
+        for child in &mut self.children {
+            child.append_undirected(self.vertex, edges);
         }
     }
-    for &mut (_, ref mut v) in &mut root.children {
-        add_to_tree(v, edges);
+
+    pub fn from_undirected(edges: &[Vec<usize>]) -> Self {
+        let mut root = Tree { vertex: 0, children: Vec::new() };
+        root.append_undirected(usize::max_value(), edges);
+        root
     }
 }
 
-fn create_tree(n: usize, edges: &[(usize, usize)]) -> Vertex {
-    let root = find_root(n, edges);
-    let mut root = Vertex { n: root, children: Vec::new() };
-    add_to_tree(&mut root, edges);
-    root
-}
-
-fn color(curr_col: usize, vertex: &Vertex, colors: &mut [usize]) {
+fn color(tree: &Tree, nums: &HashMap<(usize, usize), usize>, colors: &mut [usize], prev_col: usize) {
     let mut skip = false;
-    for (c, &(i, ref v)) in vertex.children.iter().enumerate() {
-        if c == curr_col {
+    for (col, child) in tree.children.iter().enumerate() {
+        if col == prev_col {
             skip = true;
         }
-        let c = if skip {
-            c + 1
+        let col = if skip {
+            col + 1
         } else {
-            c
+            col
         };
-        colors[i] = c;
-        color(c, v, colors);
+        colors[nums[&(tree.vertex, child.vertex)]] = col;
+        color(child, nums, colors, col);
     }
 }
 
-fn answer(n: usize, edges: &[(usize, usize)]) -> (usize, Vec<usize>) {
-    let root = create_tree(n, edges);
-    let mut colors = vec![0; edges.len()];
-    color(usize::max_value(), &root, &mut colors);
+fn answer(edges: &[(usize, usize)]) -> (usize, Vec<usize>) {
+    let n = edges.len() + 1;
+    let mut undir: Vec<Vec<usize>> = vec![vec![]; n];
+    for &(a, b) in edges {
+        undir[a].push(b);
+        undir[b].push(a);
+    }
+    let tree = Tree::from_undirected(&undir);
+
+    let mut nums = HashMap::with_capacity(edges.len());
+    for (n, &edge) in edges.iter().enumerate() {
+        nums.insert(edge, n);
+    }
+
+    let mut colors = vec![usize::max_value(); edges.len()];
+
+    color(&tree, &nums, &mut colors, usize::max_value());
     let count = colors.iter().map(|c| *c).max().unwrap() + 1;
     (count, colors)
 }
