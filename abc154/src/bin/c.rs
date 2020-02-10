@@ -7,23 +7,16 @@ use std::collections::HashSet;
 fn main() {
     let stdin = io::stdin();
     let mut r = Reader::new(stdin.lock());
-    let (_, k): (usize, usize) = r.read_line().split_whitespace().parse_all();
-    let mut p: Vec<f64> = r.read_line().split_whitespace().parse_all();
-    for e in &mut p {
-        *e = (*e + 1.0) / 2.0;
-    }
-    let mut s = 0.0;
-    for &e in &p[..k] {
-        s += e;
-    }
-    let mut max = s;
-    for i in 0..(p.len() - k) {
-        s = s - p[i] + p[i + k];
-        if s >= max {
-            max = s;
+    r.read_line();
+    let a: Vec<isize> = r.read_line().split_whitespace().parse_all();
+    let mut buf = HashSet::with_capacity(a.len());
+    for &n in &a {
+        if !buf.insert(n) {
+            println!("NO");
+            return;
         }
     }
-    println!("{}", max);
+    println!("YES");
 }
 
 /// A module for easy use of io.
