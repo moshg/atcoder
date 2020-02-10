@@ -1,8 +1,8 @@
 use std::io;
+use std::cmp;
 use io_ext::Reader;
 use parse::ParseAll;
-use std::cmp;
-use std::collections::HashSet;
+use int_ext::{combination, digits10};
 
 fn main() {
     let stdin = io::stdin();
@@ -16,49 +16,112 @@ fn main() {
         v
     };
     let mut k: i64 = r.read_line().parse().unwrap();
+
+    println!("{}", answer(&digits, k));
+}
+
+fn answer(digits: &[u8], mut k: i64) -> i64 {
+    eprintln!();
     let len = digits.len() as i64;
     let mut p = 0;
-    for (i, &digit) in digits.iter().enumerate() {
-        let i = i as i64;
+    for (i, &digit) in (0..).zip(digits) {
+        eprintln!("i: {}, p: {}", i, p);
         if digit == 0 {
+            if len - 1 - i < k {
+                break;
+            }
             continue;
-        } else {
-            if len - i - 1 < k {
-                break;
-            }
-            p += patterns(len - i - 1, k);
-            k -= 1;
-            if k < 0 {
-                break;
-            }
-            p += patterns(len - i - 1, k) * (digit as i64 - 1);
         }
-    }
-    println!("{}", p);
-}
 
-fn patterns(digits: i64, k: i64) -> i64 {
-    let positions = comb(digits, k);
-    9i64.pow(positions as u32)
-}
-
-/// Returns `n`P`k` mod `modulo`.
-pub fn perm(n: i64, k: i64) -> i64 {
-    let mut p = 1;
-    for i in 0..k {
-        p = p * (n - i);
+        if len - i - 1 >= k {
+            p += patterns(len - i - 1, k);
+        }
+        eprintln!("{}", p);
+        k -= 1;
+        if k == 0 {
+            if i == len - 1 {
+                p += digit as i64;
+            } else {
+                p += 1;
+            }
+            break;
+        }
+        p += patterns(len - i - 1, k) * (digit as i64 - 1);
+        eprintln!("{}", p);
     }
     p
 }
 
-/// Returns `n`C`k` mod `modulo`.
-pub fn comb(n: i64, k: i64) -> i64 {
-    let num = perm(n, k);
-    let mut den = 1;
-    for i in 0..k {
-        den = den * (i + 1);
+fn patterns(digits: i64, k: i64) -> i64 {
+    if digits == 0 && k == 0 {
+        return 1;
     }
-    num / den
+    let positions = combination(digits, k);
+    9i64.pow(k as u32) * positions
+}
+
+#[cfg(test)]
+mod tests {
+    use super::answer;
+
+    #[test]
+    fn test() {
+        let digits = [1, 0, 0];
+        let k = 1;
+        assert_eq!(answer(&digits, k), 19);
+
+        let digits = [2, 5];
+        let k = 2;
+        assert_eq!(answer(&digits, k), 14);
+
+        let digits = [3, 1, 4, 1, 5, 9];
+        let k = 2;
+        assert_eq!(answer(&digits, k), 937);
+
+        let digits: Vec<u8> = (0..100).map(|_| 9).collect();
+        let k = 3;
+        assert_eq!(answer(&digits, k), 117879300);
+    }
+}
+
+pub mod int_ext {
+    pub fn digits10(n: i64) -> i64 {
+        assert!(n >= 0);
+
+        let mut d = 1;
+        let mut p = 10;
+        while p <= n {
+            p *= 10;
+            d += 1;
+        }
+        d
+    }
+
+    pub fn permutation(n: i64, k: i64) -> i64 {
+        assert!(k >= 0);
+        assert!(n >= k);
+
+        let mut p = 1;
+        for i in 0..k {
+            p = p * (n - i);
+        }
+        p
+    }
+
+    pub fn combination(n: i64, k: i64) -> i64 {
+        use std::cmp;
+
+        assert!(k >= 0);
+        assert!(n >= k);
+
+        let k = cmp::min(k, n - k);
+        let num = permutation(n, k);
+        let mut den = 1;
+        for i in 0..k {
+            den = den * (i + 1);
+        }
+        num / den
+    }
 }
 
 /// A module for easy use of io.
