@@ -1,0 +1,7 @@
+[package]
+name = "abc179"
+version = "0.1.0"
+authors = ["mosh <mosh.ohayo@gmail.com>"]
+edition = "2018"
+
+[dependencies]
